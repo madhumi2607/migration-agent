@@ -5,6 +5,12 @@ description = "An autonomous agent that upgrades Python codebases across breakin
 readme = "CLAUDE.md"
 requires-python = ">=3.11"
 dependencies = [
+    # Anthropic's official SDK: the Claude provider (default model for agent runs).
+    "anthropic>=1.15,<2",
+    # Google's official Gemini SDK: second LLM provider (larger free-tier token limits than Groq).
+    "google-genai>=2.31,<3",
+    # Groq's official SDK: the first LLM provider; its built-in retry/backoff handles 429s.
+    "groq>=1.7,<2",
     # Official MCP Python SDK: used to build the repo_tools and sandbox tool servers.
     "mcp>=2.3,<3",
 ]
