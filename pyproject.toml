@@ -1,0 +1,24 @@
+[project]
+name = "migration-agent"
+version = "0.1.0"
+description = "An autonomous agent that upgrades Python codebases across breaking library releases."
+readme = "CLAUDE.md"
+requires-python = ">=3.11"
+dependencies = [
+    # Official MCP Python SDK: used to build the repo_tools and sandbox tool servers.
+    "mcp>=2.3,<3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+# This is an application, not a library we publish, so uv doesn't need to build
+# and install it. Tests import `agent` / `mcp_servers` straight from the repo root.
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

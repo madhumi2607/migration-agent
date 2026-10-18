@@ -1,0 +1,13 @@
+# Benchmark tasks. One entry per target repo, pinned to a commit that uses the old version.
+# install: installs the repo plus its test deps inside the sandbox (repo is the cwd).
+# upgrade: pip requirement(s) forced on top to simulate the upgrade.
+
+- id: pydantic-argparse
+  repo: https://github.com/SupImDos/pydantic-argparse
+  commit: c07199879040f9cfd26f13b2cfbeb8105a3c830f  # tag v0.8.0, pins pydantic ^1.9.0
+  library: pydantic
+  old_version: "1.10"
+  new_version: "2"
+  install: pip install . "pytest>=7.2,<8" pytest-mock
+  upgrade: pydantic>=2,<3
+  test: pytest tests
