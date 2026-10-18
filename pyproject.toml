@@ -22,3 +22,6 @@ package = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Tests that need Docker are slow (~30s each) and opt-in: `uv run pytest -m docker`.
+markers = ["docker: needs a running Docker engine and the sandbox image"]
+addopts = '-m "not docker"'

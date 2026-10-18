@@ -22,7 +22,9 @@ RUN useradd --create-home sandbox \
 ENV PATH="/venv/bin:$PATH"
 
 COPY entrypoint.sh /usr/local/bin/run-tests
-RUN chmod +x /usr/local/bin/run-tests
+# Strip CRLF in case the script was checked out or edited on Windows: with "\r"
+# line endings Linux looks for an interpreter named "/bin/sh\r" and fails.
+RUN sed -i 's/\r$//' /usr/local/bin/run-tests && chmod +x /usr/local/bin/run-tests
 
 USER sandbox
 WORKDIR /work

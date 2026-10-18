@@ -1,0 +1,27 @@
+/venv/lib/python3.11/site-packages/_pytest/config/__init__.py:331: PluggyTeardownRaisedWarning: A plugin raised an exception during an old-style hookwrapper teardown.
+Plugin: helpconfig, Hook: pytest_cmdline_parse
+ConftestImportFailure: AttributeError: module 'pydantic' has no attribute 'fields' (from /work/tests/conftest.py)
+For more information see https://pluggy.readthedocs.io/en/stable/api_reference.html#pluggy.PluggyTeardownRaisedWarning
+  config = pluginmanager.hook.pytest_cmdline_parse(
+ImportError while loading conftest '/work/tests/conftest.py'.
+tests/conftest.py:20: in <module>
+    from pydantic_argparse.argparse import actions
+pydantic_argparse/__init__.py:12: in <module>
+    from pydantic_argparse.argparse import ArgumentParser
+pydantic_argparse/argparse/__init__.py:13: in <module>
+    from pydantic_argparse.argparse.parser import ArgumentParser
+pydantic_argparse/argparse/parser.py:26: in <module>
+    from pydantic_argparse import parsers
+pydantic_argparse/parsers/__init__.py:11: in <module>
+    from pydantic_argparse.parsers import boolean
+pydantic_argparse/parsers/boolean.py:20: in <module>
+    from pydantic_argparse import utils
+pydantic_argparse/utils/__init__.py:14: in <module>
+    from pydantic_argparse.utils import arguments
+pydantic_argparse/utils/arguments.py:12: in <module>
+    def name(field: pydantic.fields.ModelField, invert: bool = False) -> str:
+/venv/lib/python3.11/site-packages/pydantic/__init__.py:442: in __getattr__
+    return _getattr_migration(attr_name)
+/venv/lib/python3.11/site-packages/pydantic/_migration.py:315: in wrapper
+    raise AttributeError(f'module {module!r} has no attribute {name!r}')
+E   AttributeError: module 'pydantic' has no attribute 'fields'

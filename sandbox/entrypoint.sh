@@ -23,4 +23,8 @@ fi
 
 pip freeze > /out/freeze.txt
 
-sh -c "$TEST_CMD --junitxml=/out/junit.xml -p no:cacheprovider" > /out/pytest.log 2>&1
+# xunit1 adds file= and line= to each <testcase>, which lets the report build
+# runnable test ids (tests/x.py::TestA::test_b) instead of dotted class names.
+# --continue-on-collection-errors: by default one test module that fails to import
+# aborts the whole run, hiding every other failure from the agent.
+sh -c "$TEST_CMD --junitxml=/out/junit.xml -o junit_family=xunit1 --continue-on-collection-errors -p no:cacheprovider" > /out/pytest.log 2>&1
