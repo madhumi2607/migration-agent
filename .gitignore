@@ -9,3 +9,7 @@ workspace/
 
 # Run traces (agent/trace.py). Benchmark results are committed deliberately; raw traces are not.
 runs/
+
+# Dashboard frontend: dependencies and build output.
+dashboard/web/node_modules/
+dashboard/web/dist/

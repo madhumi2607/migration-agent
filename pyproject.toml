@@ -7,12 +7,16 @@ requires-python = ">=3.11"
 dependencies = [
     # Anthropic's official SDK: the Claude provider (default model for agent runs).
     "anthropic>=1.15,<2",
+    # Dashboard backend (dashboard/api.py): JSON API over runs/ and serving the React app.
+    "fastapi>=0.120,<1",
     # Google's official Gemini SDK: second LLM provider (larger free-tier token limits than Groq).
     "google-genai>=2.31,<3",
     # Groq's official SDK: the first LLM provider; its built-in retry/backoff handles 429s.
     "groq>=1.7,<2",
     # Official MCP Python SDK: used to build the repo_tools and sandbox tool servers.
     "mcp>=2.3,<3",
+    # ASGI server that runs the dashboard (already pulled in by mcp; listed because we use it directly).
+    "uvicorn>=0.30",
 ]
 
 [dependency-groups]
