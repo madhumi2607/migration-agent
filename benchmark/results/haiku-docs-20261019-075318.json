@@ -1,0 +1,214 @@
+{
+ "name": "haiku-docs",
+ "started_at": "2026-10-19T07:53:18.428246+00:00",
+ "config": {
+  "models": [
+   "claude-haiku-5-5"
+  ],
+  "docs": "both",
+  "tasks": [
+   "geojson-pydantic",
+   "fastapi-restful",
+   "pydantic-cli"
+  ],
+  "max_steps": 40
+ },
+ "rows": [
+  {
+   "task": "geojson-pydantic",
+   "difficulty": "easy",
+   "model": "claude-haiku-5-5",
+   "docs_search": false,
+   "run_id": "20261019-075326-geojson-pydantic",
+   "success": true,
+   "stop_reason": "finished",
+   "failure_category": null,
+   "steps": 15,
+   "input_tokens": 407554,
+   "cache_read_tokens": 369233,
+   "output_tokens": 12994,
+   "cost_usd": 0.01402143,
+   "duration_seconds": 196.997749,
+   "tests_before": {
+    "status": "failed",
+    "passed": 0,
+    "total": 3
+   },
+   "tests_after": {
+    "status": "passed",
+    "passed": 134,
+    "total": 134
+   },
+   "files_changed": 6,
+   "lines_added": 45,
+   "lines_removed": 34,
+   "check_errors": 0,
+   "check_warnings": 0,
+   "check_findings": []
+  },
+  {
+   "task": "geojson-pydantic",
+   "difficulty": "easy",
+   "model": "claude-haiku-5-5",
+   "docs_search": true,
+   "run_id": "20261019-075652-geojson-pydantic",
+   "success": true,
+   "stop_reason": "finished",
+   "failure_category": null,
+   "steps": 12,
+   "input_tokens": 370683,
+   "cache_read_tokens": 324574,
+   "output_tokens": 12052,
+   "cost_usd": 0.013882640000000002,
+   "duration_seconds": 187.883748,
+   "tests_before": {
+    "status": "failed",
+    "passed": 0,
+    "total": 3
+   },
+   "tests_after": {
+    "status": "passed",
+    "passed": 134,
+    "total": 134
+   },
+   "files_changed": 5,
+   "lines_added": 50,
+   "lines_removed": 34,
+   "check_errors": 0,
+   "check_warnings": 0,
+   "check_findings": []
+  },
+  {
+   "task": "fastapi-restful",
+   "difficulty": "medium",
+   "model": "claude-haiku-5-5",
+   "docs_search": false,
+   "run_id": "20261019-080008-fastapi-restful",
+   "success": true,
+   "stop_reason": "finished",
+   "failure_category": "passed_with_findings",
+   "steps": 10,
+   "input_tokens": 212640,
+   "cache_read_tokens": 184178,
+   "output_tokens": 6512,
+   "cost_usd": 0.00794398,
+   "duration_seconds": 170.398188,
+   "tests_before": {
+    "status": "startup_error",
+    "passed": 0,
+    "total": null
+   },
+   "tests_after": {
+    "status": "passed",
+    "passed": 69,
+    "total": 69
+   },
+   "files_changed": 4,
+   "lines_added": 20,
+   "lines_removed": 14,
+   "check_errors": 0,
+   "check_warnings": 1,
+   "check_findings": [
+    "[warning] pins: fastapi is pinned to '<1.0,>=0.89', which still allows versions below 0.100 that the migrated code doesn't support."
+   ]
+  },
+  {
+   "task": "fastapi-restful",
+   "difficulty": "medium",
+   "model": "claude-haiku-5-5",
+   "docs_search": true,
+   "run_id": "20261019-080307-fastapi-restful",
+   "success": true,
+   "stop_reason": "finished",
+   "failure_category": "passed_with_findings",
+   "steps": 11,
+   "input_tokens": 272187,
+   "cache_read_tokens": 238568,
+   "output_tokens": 5804,
+   "cost_usd": 0.00864958,
+   "duration_seconds": 172.29558,
+   "tests_before": {
+    "status": "startup_error",
+    "passed": 0,
+    "total": null
+   },
+   "tests_after": {
+    "status": "passed",
+    "passed": 69,
+    "total": 69
+   },
+   "files_changed": 6,
+   "lines_added": 20,
+   "lines_removed": 16,
+   "check_errors": 0,
+   "check_warnings": 1,
+   "check_findings": [
+    "[warning] pins: fastapi is pinned to '<1.0,>=0.89', which still allows versions below 0.100 that the migrated code doesn't support."
+   ]
+  },
+  {
+   "task": "pydantic-cli",
+   "difficulty": "hard",
+   "model": "claude-haiku-5-5",
+   "docs_search": false,
+   "run_id": "20261019-080608-pydantic-cli",
+   "success": false,
+   "stop_reason": "max_steps",
+   "failure_category": "budget_exhausted",
+   "steps": 40,
+   "input_tokens": 2926267,
+   "cache_read_tokens": 2817293,
+   "output_tokens": 44245,
+   "cost_usd": 0.061192830000000004,
+   "duration_seconds": 324.778223,
+   "tests_before": {
+    "status": "failed",
+    "passed": 0,
+    "total": 15
+   },
+   "tests_after": {
+    "status": "passed",
+    "passed": 35,
+    "total": 35
+   },
+   "files_changed": 12,
+   "lines_added": 131,
+   "lines_removed": 75,
+   "check_errors": 0,
+   "check_warnings": 0,
+   "check_findings": []
+  },
+  {
+   "task": "pydantic-cli",
+   "difficulty": "hard",
+   "model": "claude-haiku-5-5",
+   "docs_search": true,
+   "run_id": "20261019-081141-pydantic-cli",
+   "success": true,
+   "stop_reason": "finished",
+   "failure_category": null,
+   "steps": 29,
+   "input_tokens": 1741954,
+   "cache_read_tokens": 1648306,
+   "output_tokens": 33213,
+   "cost_usd": 0.042454360000000003,
+   "duration_seconds": 343.360733,
+   "tests_before": {
+    "status": "failed",
+    "passed": 0,
+    "total": 15
+   },
+   "tests_after": {
+    "status": "passed",
+    "passed": 35,
+    "total": 35
+   },
+   "files_changed": 11,
+   "lines_added": 118,
+   "lines_removed": 65,
+   "check_errors": 0,
+   "check_warnings": 0,
+   "check_findings": []
+  }
+ ]
+}
