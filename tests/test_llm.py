@@ -259,6 +259,10 @@ def test_claude_request_shape() -> None:
     assert req["thinking"] == {"type": "adaptive"} and req["output_config"] == {"effort": "high"}
     assert req["cache_control"] == {"type": "ephemeral"}
     assert req["fallbacks"] == "default" and "server-side-fallback-2026-07-01" in req["betas"]
+
+    haiku = FakeClaudeClient(claude_message({"type": "text", "text": "hi"}, stop="end_turn"))
+    ClaudeLLM("claude-haiku-5-5", client=haiku).chat("s", [], [])
+    assert "fallbacks" not in haiku.requests[0] and "betas" not in haiku.requests[0]  # Haiku 5.5 has none
     assert req["tools"] == [{"name": "read_file", "description": "Read a file.", "input_schema": READ_FILE.input_schema}]
     assert req["messages"] == [{"role": "user", "content": "go"}]
 

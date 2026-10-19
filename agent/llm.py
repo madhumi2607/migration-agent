@@ -291,6 +291,8 @@ class ClaudeLLM:
     # Server-side refusal fallback: if a safety classifier declines a request, the API re-runs it
     # on a fallback model inside the same call instead of failing the agent run.
     FALLBACK_BETA = "server-side-fallback-2026-07-01"
+    # Only these models accept server-side fallbacks (Haiku 5.5 has none; sending it there is a 400).
+    FALLBACK_MODELS = {"claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5", "claude-fable-5-1"}
 
     def __init__(self, model: str, client: Any = None, effort: str = "high", max_tokens: int = 64_000) -> None:
         if client is None:
@@ -314,9 +316,10 @@ class ClaudeLLM:
             # Cache the longest stable prefix. Our history only grows at the end, so each
             # request re-reads the previous one's prefix from cache at a fraction of the price.
             "cache_control": {"type": "ephemeral"},
-            "betas": [self.FALLBACK_BETA],
-            "fallbacks": "default",
         }
+        if self.model in self.FALLBACK_MODELS:
+            kwargs["betas"] = [self.FALLBACK_BETA]
+            kwargs["fallbacks"] = "default"
         if tools:
             kwargs["tools"] = [{"name": t.name, "description": t.description, "input_schema": t.input_schema} for t in tools]
         # Streamed because large max_tokens values exceed the SDK's non-streaming timeout.

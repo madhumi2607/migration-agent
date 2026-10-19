@@ -8,6 +8,8 @@ Source: Claude API reference, Oct 2026 (https://claude.com/pricing).
 PRICES: dict[str, tuple[float, float, float]] = {
     "claude-opus-5-5": (4.00, 0.20, 20.00),
     "claude-sonnet-5-5": (2.00, 0.20, 10.00),
+    # Haiku 5.5's rate applies to prompts of <=100K tokens; longer prompts cost 5x ($0.50 / $2.50).
+    # Agent prompts here stay well under that (largest seen: ~60K), so the low rate is used.
     "claude-haiku-5-5": (0.10, 0.01, 0.50),
 }
 
