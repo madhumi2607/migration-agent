@@ -113,6 +113,22 @@ code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; font-
 @keyframes pulse { 50% { opacity: 0.3; } }
 @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
 
+/* ---------- review checks ---------- */
+.checks-card.has-errors { border-color: rgba(208, 59, 59, 0.45); }
+.check-ok { color: var(--text-2); display: flex; gap: 8px; align-items: center; }
+.findings { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.findings li { display: grid; grid-template-columns: 16px auto 1fr; gap: 4px 8px; align-items: baseline; }
+.finding-msg { grid-column: 2 / -1; color: var(--text-2); line-height: 1.45; }
+.icon-warn { color: #fab219; font-weight: 800; text-align: center; }
+.sev { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.sev-error { color: var(--critical-text); }
+.sev-warning { color: #fbc85a; }
+.check-pills { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.check-pill { display: inline-flex; gap: 4px; align-items: center; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
+.check-pill.ok { color: var(--good-text); border-color: rgba(12, 163, 12, 0.35); }
+.check-pill.warn { color: #fbc85a; border-color: rgba(250, 178, 25, 0.4); }
+.check-pill.err { color: var(--critical-text); border-color: rgba(208, 59, 59, 0.45); }
+
 /* ---------- runs table ---------- */
 .table-wrap { overflow-x: auto; }
 table.runs { width: 100%; border-collapse: collapse; }

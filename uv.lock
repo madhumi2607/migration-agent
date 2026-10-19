@@ -780,6 +780,7 @@ dependencies = [
     { name = "google-genai" },
     { name = "groq" },
     { name = "mcp" },
+    { name = "packaging" },
     { name = "pyyaml" },
     { name = "uvicorn" },
 ]
@@ -796,6 +797,7 @@ requires-dist = [
     { name = "google-genai", specifier = ">=2.31,<3" },
     { name = "groq", specifier = ">=1.7,<2" },
     { name = "mcp", specifier = ">=2.3,<3" },
+    { name = "packaging", specifier = ">=24" },
     { name = "pyyaml", specifier = ">=6,<7" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]

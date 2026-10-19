@@ -21,6 +21,7 @@ from mcp import Client, StdioServerParameters
 from mcp.server.mcpserver import MCPServer
 
 from agent import prompts
+from agent.checks import check_run
 from agent.llm import LLM, LLMResponse, ToolCall, ToolSpec, assistant_message, get_llm, tool_result_message
 from agent.trace import RunTrace
 from benchmark.tasks import load_tasks, prepare_checkout
@@ -283,6 +284,13 @@ async def _main(args: argparse.Namespace) -> tuple[RunResult, RunTrace]:
     async with ToolBox(servers) as toolbox:
         result = await run_agent(llm, toolbox, task, LoopConfig(max_steps=args.max_steps), on_event=trace)
     trace.finish(result)
+    try:
+        findings = check_run(trace.path)  # review checks on the final diff -> checks.json
+        print(f"Review checks: {len(findings)} finding(s)", file=sys.stderr)
+        for f in findings:
+            print(f"  [{f.severity}] {f.check}: {f.message}", file=sys.stderr)
+    except Exception as exc:  # the checks must never lose a finished run
+        print(f"Review checks failed: {exc}", file=sys.stderr)
     return result, trace
 
 

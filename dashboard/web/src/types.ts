@@ -23,7 +23,12 @@ export type RunSummary = {
   cost_usd: number | null;
   tests_before: TestCounts | null;
   tests_after: TestCounts | null;
+  check_errors: number | null; // null = not checked yet
+  check_warnings: number | null;
 };
+
+// One review-check finding (agent/checks.py).
+export type Finding = { severity: "error" | "warning"; check: string; message: string; file: string | null };
 
 export type FailureGroup = {
   kind: string;
@@ -65,4 +70,5 @@ export type RunDetail = {
   summary: RunSummary;
   events: RunEvent[];
   diff: string | null;
+  checks: Finding[] | null;
 };

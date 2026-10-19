@@ -37,6 +37,12 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
 
 
+def read_checks(run_dir: Path) -> list[dict[str, Any]] | None:
+    """Review-check findings (agent/checks.py), or None if the run hasn't been checked."""
+    path = run_dir / "checks.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+
+
 def _tests(report: dict[str, Any] | None) -> dict[str, Any] | None:
     """Passed/total from a sandbox report, or None if there was no test run yet."""
     if report is None:
@@ -51,6 +57,7 @@ def summarize(run_dir: Path) -> dict[str, Any]:
     result = _read_json(run_dir / "result.json")
     events = read_events(run_dir)
 
+    checks = read_checks(run_dir)
     llm_calls = [e for e in events if e["type"] == "llm_call"]
     test_runs = [e for e in events if e["type"] == "test_run"]
     tokens = {key: sum(e.get(key, 0) for e in llm_calls) for key in ("input_tokens", "cache_read_tokens", "output_tokens")}
@@ -83,6 +90,8 @@ def summarize(run_dir: Path) -> dict[str, Any]:
         "cost_usd": estimate_cost(meta.get("model"), **tokens),
         "tests_before": _tests(test_runs[0]["report"] if test_runs else None),
         "tests_after": _tests(test_runs[-1]["report"] if len(test_runs) > 1 else None),
+        "check_errors": None if checks is None else sum(f["severity"] == "error" for f in checks),
+        "check_warnings": None if checks is None else sum(f["severity"] == "warning" for f in checks),
     }
 
 
@@ -96,4 +105,5 @@ def run_detail(run_dir: Path) -> dict[str, Any]:
         "summary": summarize(run_dir),
         "events": events,
         "diff": diff_path.read_text(encoding="utf-8") if diff_path.is_file() else None,
+        "checks": read_checks(run_dir),
     }

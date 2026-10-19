@@ -42,6 +42,17 @@ function Headline({ runs }: { runs: RunSummary[] }) {
   );
 }
 
+function ChecksCell({ errors, warnings }: { errors: number | null; warnings: number | null }) {
+  if (errors == null || warnings == null) return <span className="muted">—</span>;
+  if (errors === 0 && warnings === 0) return <span className="check-pill ok"><span aria-hidden>✓</span> clean</span>;
+  return (
+    <span className="check-pills">
+      {errors > 0 && <span className="check-pill err"><span aria-hidden>✕</span> {errors} error{errors > 1 ? "s" : ""}</span>}
+      {warnings > 0 && <span className="check-pill warn"><span aria-hidden>!</span> {warnings} warning{warnings > 1 ? "s" : ""}</span>}
+    </span>
+  );
+}
+
 export default function RunsPage() {
   const { data: runs, error } = useRuns();
 
@@ -71,6 +82,7 @@ export default function RunsPage() {
                   <th>Model</th>
                   <th>Status</th>
                   <th className="num">Tests</th>
+                  <th>Checks</th>
                   <th className="num">Steps</th>
                   <th className="num">Input</th>
                   <th className="num">Cost</th>
@@ -90,6 +102,7 @@ export default function RunsPage() {
                     </td>
                     <td><StatusBadge status={r.status} stopReason={r.stop_reason} /></td>
                     <td className="num mono">{formatTests(r.tests_before)} → {formatTests(r.tests_after)}</td>
+                    <td><ChecksCell errors={r.check_errors} warnings={r.check_warnings} /></td>
                     <td className="num">{r.steps}</td>
                     <td className="num">
                       {formatTokens(r.input_tokens)}

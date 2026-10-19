@@ -41,6 +41,8 @@ def runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         llm_call(1, 2_000, 0, 100), llm_call(2, 10_000, 2_000, 400),
         {"type": "test_run", "purpose": "verification", "report": PASSED_REPORT},
     ], result={"success": True, "stop_reason": "finished", "summary": "Migrated.", "finished_at": "2026-10-19T10:07:30+00:00"})
+    (runs / "20261019-100000-geojson-pydantic" / "checks.json").write_text(json.dumps([
+        {"severity": "warning", "check": "pins", "message": "fastapi pin allows <0.100", "file": None}]), encoding="utf-8")
     # A run still in progress: no result.json, and a half-written last line.
     live = write_run(runs, "20261019-110000-geojson-pydantic", [
         {"type": "start"}, {"type": "test_run", "purpose": "baseline", "report": FAILED_REPORT}, llm_call(1, 2_000, 0, 50)])
@@ -63,11 +65,13 @@ def test_summary_of_finished_run(runs: Path) -> None:
     assert s["tests_after"] == {"status": "passed", "passed": 134, "total": 134}
     assert s["duration_seconds"] == 450 and s["repo"] == "geojson-pydantic" and s["repo_commit"] == "8a07ab8"
     assert s["cost_usd"] == pytest.approx((10_000 * 4 + 2_000 * 0.2 + 500 * 20) / 1e6)
+    assert (s["check_errors"], s["check_warnings"]) == (0, 1)
 
 
 def test_summary_of_live_run(runs: Path) -> None:
     s = summarize(runs / "20261019-110000-geojson-pydantic")
     assert s["status"] == "running" and s["steps"] == 1 and s["tests_after"] is None and s["duration_seconds"] is None
+    assert s["check_errors"] is None  # not checked yet
 
 
 def test_cost_only_for_known_models() -> None:
@@ -83,6 +87,7 @@ def test_api_lists_and_details_runs(runs: Path) -> None:
     detail = client.get("/api/runs/20261019-100000-geojson-pydantic").json()
     assert detail["summary"]["status"] == "succeeded" and detail["diff"].startswith("--- a/x.py")
     assert len(detail["events"]) == 5 and all("provider_state" not in e for e in detail["events"])
+    assert detail["checks"][0]["check"] == "pins"
 
 
 @pytest.mark.parametrize("bad_id", ["nope", "not-a-run", "..%2F..%2F.env", "..%5C..%5C.env"])

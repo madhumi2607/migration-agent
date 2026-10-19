@@ -5,6 +5,7 @@ import { cachedShare, formatCost, formatDuration, formatTests, formatTime, forma
 import RunCharts from "./RunCharts";
 import { StatusBadge } from "./StatusBadge";
 import Timeline from "./Timeline";
+import type { Finding } from "./types";
 
 type Tab = "overview" | "timeline" | "diff" | "settings";
 
@@ -55,6 +56,7 @@ export default function RunPage({ runId }: { runId: string }) {
         </div>
       )}
       {s.error && <div className="card error-card prewrap"><div className="card-label">Error</div>{s.error}</div>}
+      <ChecksCard checks={run.checks} running={s.status === "running"} />
 
       <nav className="tabs">
         {tabs.map(([t, label]) => (
@@ -67,6 +69,36 @@ export default function RunPage({ runId }: { runId: string }) {
       {tab === "diff" && <Diff diff={run.diff} running={s.status === "running"} />}
       {tab === "settings" && <pre className="code">{JSON.stringify(run.meta, null, 2)}</pre>}
     </>
+  );
+}
+
+const CHECK_LABEL: Record<string, string> = {
+  pins: "Dependency pins", removed_dependency: "Removed dependency",
+  compat_shim: "Compatibility shim", test_integrity: "Test integrity",
+};
+
+/** Review checks on the final diff: things the tests can't catch (agent/checks.py). */
+function ChecksCard({ checks, running }: { checks: Finding[] | null; running: boolean }) {
+  if (checks == null) // null or missing (an older API): not checked yet
+    return running ? null : <div className="card muted small">Review checks haven't run for this run (<code>python -m agent.checks runs/&lt;id&gt;</code>).</div>;
+  return (
+    <div className={`card checks-card ${checks.some((f) => f.severity === "error") ? "has-errors" : ""}`}>
+      <div className="card-label">Review checks · things the tests can't catch</div>
+      {checks.length === 0 ? (
+        <div className="check-ok"><span className="icon-ok" aria-hidden>✓</span> No findings: pins, dependencies, shims and test integrity all look right.</div>
+      ) : (
+        <ul className="findings">
+          {checks.map((f, i) => (
+            <li key={i}>
+              <span className={f.severity === "error" ? "icon-bad" : "icon-warn"} aria-hidden>{f.severity === "error" ? "✕" : "!"}</span>
+              <span className={`sev sev-${f.severity}`}>{f.severity}</span>
+              <span className="muted small">{CHECK_LABEL[f.check] ?? f.check}</span>
+              <div className="finding-msg">{f.message}{f.file && <span className="mono small muted"> · {f.file}</span>}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
