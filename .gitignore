@@ -7,5 +7,5 @@ __pycache__/
 # Target repos cloned for local runs (each run works on its own checkout).
 workspace/
 
-# Benchmark output is committed deliberately; raw traces are not.
-traces/
+# Run traces (agent/trace.py). Benchmark results are committed deliberately; raw traces are not.
+runs/

@@ -1,7 +1,8 @@
 """The hand-written agent loop: call LLM -> run the tool it picks -> append result -> repeat.
 
-Run against the target repo (needs .env with GROQ_API_KEY, TARGET_REPO_ROOT and SANDBOX_*):
+Run against the target repo (needs .env with an LLM key, TARGET_REPO_ROOT and SANDBOX_*):
     uv run --env-file .env python -m agent.loop --library pydantic --old-version 1 --new-version 2
+Each run is recorded under runs/<run-id>/ (see agent/trace.py).
 """
 
 import argparse
@@ -9,6 +10,8 @@ import asyncio
 import json
 import os
 import sys
+import time
+from collections.abc import Callable
 from contextlib import AsyncExitStack
 from dataclasses import asdict, dataclass, field
 from typing import Any
@@ -17,7 +20,11 @@ from mcp import Client, StdioServerParameters
 from mcp.server.mcpserver import MCPServer
 
 from agent import prompts
-from agent.llm import LLM, ToolCall, ToolSpec, assistant_message, get_llm, tool_result_message
+from agent.llm import LLM, LLMResponse, ToolCall, ToolSpec, assistant_message, get_llm, tool_result_message
+from agent.trace import RunTrace
+
+# Receives one dict per thing that happens in a run (see run_agent); used for tracing.
+EventHandler = Callable[[dict[str, Any]], None]
 
 FINISH_TOOL = ToolSpec(
     name="finish",
@@ -60,7 +67,6 @@ class RunResult:
     summary: str | None = None
     initial_report: dict[str, Any] = field(default_factory=dict)
     final_report: dict[str, Any] = field(default_factory=dict)
-    events: list[dict[str, Any]] = field(default_factory=list)  # one per tool call, for tracing
 
 
 class ToolBox:
@@ -132,10 +138,41 @@ def render(is_error: bool, payload: Any, limit: int) -> str:
     return text
 
 
-async def run_agent(llm: LLM, toolbox: ToolBox, task: TaskSpec, config: LoopConfig | None = None) -> RunResult:
-    """Run the migration loop until the model finishes with a passing suite or a budget runs out."""
+async def run_agent(
+    llm: LLM, toolbox: ToolBox, task: TaskSpec, config: LoopConfig | None = None, on_event: EventHandler | None = None,
+) -> RunResult:
+    """Run the migration loop until the model finishes with a passing suite or a budget runs out.
+
+    on_event receives every model call, tool call, user message and test run, in order. Each
+    event holds only what is new, so the full conversation can be rebuilt by replaying them.
+    """
     config = config or LoopConfig()
-    result = RunResult(initial_report=await toolbox.run_tests())
+    messages: list[dict[str, Any]] = []
+    result = RunResult()
+
+    def emit(event_type: str, **data: Any) -> None:
+        if on_event:
+            on_event({"type": event_type, "ts": time.time(), **data})
+
+    async def test_run(purpose: str) -> dict[str, Any]:
+        report = await toolbox.run_tests()
+        emit("test_run", purpose=purpose, report=report)
+        return report
+
+    def user_message(content: str) -> None:
+        messages.append({"role": "user", "content": content})
+        emit("user_message", step=result.steps, content=content)
+
+    def tool_result(call: ToolCall, content: str, started: float) -> None:
+        messages.append(tool_result_message(call, content))
+        emit("tool_call", step=result.steps, id=call.id, name=call.name, arguments=call.arguments, result=content,
+             is_error=content.startswith("ERROR:"), seconds=round(time.monotonic() - started, 2))
+
+    system = prompts.system_prompt(task.library, task.old_version, task.new_version)
+    tools = [*toolbox.specs, FINISH_TOOL]
+    emit("start", task=asdict(task), config=asdict(config), system=system, tools=[asdict(t) for t in tools])
+
+    result.initial_report = await test_run("baseline")
     if result.initial_report.get("status") == "passed":
         result.success, result.stop_reason, result.final_report = True, "already_passing", result.initial_report
         return result
@@ -146,9 +183,7 @@ async def run_agent(llm: LLM, toolbox: ToolBox, task: TaskSpec, config: LoopConf
         result.error = str(result.initial_report.get("detail") or result.initial_report.get("status"))[:1000]
         return result
 
-    system = prompts.system_prompt(task.library, task.old_version, task.new_version)
-    messages = [{"role": "user", "content": prompts.initial_message(task.library, task.new_version, result.initial_report)}]
-    tools = [*toolbox.specs, FINISH_TOOL]
+    user_message(prompts.initial_message(task.library, task.new_version, result.initial_report))
 
     while True:
         if result.steps >= config.max_steps:
@@ -159,39 +194,50 @@ async def run_agent(llm: LLM, toolbox: ToolBox, task: TaskSpec, config: LoopConf
             break
 
         # The LLM client is synchronous; run it in a thread so MCP connections stay serviced.
+        started = time.monotonic()
         try:
             response = await asyncio.to_thread(llm.chat, system, messages, tools)
         except Exception as exc:  # adapters already retried; e.g. a request over the provider's size limit
             result.stop_reason, result.error = "llm_error", f"{type(exc).__name__}: {exc}"[:1000]
+            emit("llm_error", step=result.steps + 1, error=result.error)
             break
         result.steps += 1
         result.input_tokens += response.input_tokens
         result.cache_read_tokens += response.cache_read_tokens
         result.output_tokens += response.output_tokens
         messages.append(assistant_message(response))
+        _emit_llm_call(emit, result.steps, response, time.monotonic() - started)
 
         if not response.tool_calls:
-            messages.append({"role": "user", "content": prompts.NUDGE})
+            user_message(prompts.NUDGE)
             continue
 
         for call in response.tool_calls:
+            started = time.monotonic()
             if call.name == FINISH_TOOL.name and call.error is None:
-                report = await toolbox.run_tests()
-                result.events.append(_event(result.steps, call, report.get("status")))
+                report = await test_run("verification")
                 if report.get("status") == "passed":
                     result.success, result.stop_reason = True, "finished"
                     result.summary = call.arguments.get("summary")
                     result.final_report = report
+                    tool_result(call, "Verified: the full test suite passes.", started)
                     return result
-                content = prompts.verification_failed(report)
+                tool_result(call, prompts.verification_failed(report), started)
             else:
-                content = await _run_tool_call(toolbox, call, config.max_tool_result_chars)
-                result.events.append(_event(result.steps, call, content[:200]))
-            messages.append(tool_result_message(call, content))
+                tool_result(call, await _run_tool_call(toolbox, call, config.max_tool_result_chars), started)
 
     # Budget exhausted or LLM failed: one last full run so the metrics reflect where the repo ended up.
-    result.final_report = await toolbox.run_tests()
+    result.final_report = await test_run("final")
     return result
+
+
+def _emit_llm_call(emit: Callable[..., None], step: int, response: LLMResponse, seconds: float) -> None:
+    emit("llm_call", step=step, seconds=round(seconds, 2), text=response.text, stop_reason=response.stop_reason,
+         input_tokens=response.input_tokens, cache_read_tokens=response.cache_read_tokens,
+         output_tokens=response.output_tokens,
+         tool_calls=[{"id": c.id, "name": c.name, "arguments": c.arguments, "error": c.error} for c in response.tool_calls],
+         # Provider-native turn (e.g. signed thinking blocks): needed to replay the exact history.
+         provider_state=response.provider_state)
 
 
 async def _run_tool_call(toolbox: ToolBox, call: ToolCall, limit: int) -> str:
@@ -205,20 +251,26 @@ async def _run_tool_call(toolbox: ToolBox, call: ToolCall, limit: int) -> str:
     return render(is_error, payload, limit)
 
 
-def _event(step: int, call: ToolCall, outcome: Any) -> dict[str, Any]:
-    return {"step": step, "tool": call.name, "arguments": call.arguments, "outcome": outcome}
-
-
 def _stdio_server(module: str) -> StdioServerParameters:
     """Launch one of our MCP servers as a subprocess, inheriting this process's env (.env values, PATH)."""
     return StdioServerParameters(command=sys.executable, args=["-m", module], env=dict(os.environ))
 
 
-async def _main(args: argparse.Namespace) -> RunResult:
+async def _main(args: argparse.Namespace) -> tuple[RunResult, RunTrace]:
     servers = [_stdio_server("mcp_servers.repo_tools.server"), _stdio_server("mcp_servers.sandbox.server")]
     task = TaskSpec(args.library, args.old_version, args.new_version)
+    llm = get_llm()
+    trace = RunTrace.create(args.runs_dir, repo=os.environ["TARGET_REPO_ROOT"], meta={
+        "provider": os.environ.get("LLM_PROVIDER", "claude"),
+        "model": llm.model,
+        "effort": getattr(llm, "effort", None),
+        "sandbox": {k: os.environ.get(k) for k in ("SANDBOX_INSTALL_CMD", "SANDBOX_TEST_CMD", "SANDBOX_UPGRADE", "SANDBOX_IMAGE")},
+    })
+    print(f"Recording run to {trace.path}", file=sys.stderr)
     async with ToolBox(servers) as toolbox:
-        return await run_agent(get_llm(), toolbox, task, LoopConfig(max_steps=args.max_steps))
+        result = await run_agent(llm, toolbox, task, LoopConfig(max_steps=args.max_steps), on_event=trace)
+    trace.finish(result)
+    return result, trace
 
 
 def main() -> None:
@@ -227,8 +279,10 @@ def main() -> None:
     parser.add_argument("--old-version", default="1")
     parser.add_argument("--new-version", default="2")
     parser.add_argument("--max-steps", type=int, default=LoopConfig.max_steps)
-    result = asyncio.run(_main(parser.parse_args()))
-    print(json.dumps(asdict(result), indent=1))
+    parser.add_argument("--runs-dir", default="runs", help="where run traces are written")
+    result, trace = asyncio.run(_main(parser.parse_args()))
+    print(json.dumps({k: v for k, v in asdict(result).items() if k not in ("initial_report", "final_report")}, indent=1))
+    print(f"Trace: {trace.path}")
 
 
 if __name__ == "__main__":
