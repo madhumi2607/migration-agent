@@ -172,20 +172,23 @@ def test_server_over_mcp(tmp_path: Path) -> None:
 # --- end to end: real Docker, real target repo (opt-in) ---
 
 @pytest.mark.docker
-def test_pydantic_argparse_under_v2() -> None:
-    repo = PROJECT_ROOT / "workspace" / "pydantic-argparse"
+def test_geojson_pydantic_under_v2() -> None:
+    """The benchmark's first task (benchmark/tasks.yaml): one root cause blocks every test module."""
+    repo = PROJECT_ROOT / "workspace" / "geojson-pydantic"
     if not repo.is_dir():
-        pytest.fail(f"Clone the target first: git clone https://github.com/SupImDos/pydantic-argparse {repo}")
+        pytest.fail(f"Clone the target first: git clone https://github.com/developmentseed/geojson-pydantic {repo} "
+                    "&& git -C {repo} checkout 8a07ab86373fb289c6a4ce34c2105a777debe380")
     config = SandboxConfig(
         repo_root=repo,
-        install_cmd='pip install . "pytest>=7.2,<8" pytest-mock',
+        install_cmd='pip install -e . pytest "shapely>=2.0,<2.1"',
         test_cmd="pytest tests",
         upgrade="pydantic>=2,<3",
     )
     result = runner.run_tests(config)
-    assert result["status"] == "startup_error", result
+    assert result["status"] == "failed", result
     assert result["versions"]["pydantic"].startswith("2.")
-    assert result["failure_groups"][0]["location"] == "pydantic_argparse/utils/arguments.py:12"
+    [group] = result["failure_groups"]  # editable install: all 3 import errors share one in-repo location
+    assert group["count"] == 3 and group["location"] == "geojson_pydantic/geometries.py:9"
 
 
 def test_broken_container_is_sandbox_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

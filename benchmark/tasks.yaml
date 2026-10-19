@@ -1,13 +1,32 @@
 # Benchmark tasks. One entry per target repo, pinned to a commit that uses the old version.
 # install: installs the repo plus its test deps inside the sandbox (repo is the cwd).
+#          Use an editable install (-e) so tracebacks point into the repo, not site-packages.
+#          Pin test deps the suite was written against, so the baseline passes.
 # upgrade: pip requirement(s) forced on top to simulate the upgrade.
+#
+# A task is only valid if its baseline passes on the old version and its tests use the
+# library through its public API: the agent may not edit tests, so tests that depend on
+# old-version internals make the task impossible.
 
-- id: pydantic-argparse
-  repo: https://github.com/SupImDos/pydantic-argparse
-  commit: c07199879040f9cfd26f13b2cfbeb8105a3c830f  # tag v0.8.0, pins pydantic ^1.9.0
+- id: geojson-pydantic
+  repo: https://github.com/developmentseed/geojson-pydantic
+  commit: 8a07ab86373fb289c6a4ce34c2105a777debe380  # tag 0.6.3, pins pydantic~=1.0
   library: pydantic
-  old_version: "1.10"
+  old_version: "1"
   new_version: "2"
-  install: pip install . "pytest>=7.2,<8" pytest-mock
+  # shapely 2.0.x: the tests compare WKT strings, and 2.1+ (newer GEOS) and 1.x format them differently.
+  install: pip install -e . pytest "shapely>=2.0,<2.1"
   upgrade: pydantic>=2,<3
   test: pytest tests
+  baseline: 134 passed on pydantic 1.10
+  reference_solution: https://github.com/developmentseed/geojson-pydantic/pull/130  # upstream native v2 port
+
+# Rejected tasks, kept so they aren't re-evaluated.
+rejected:
+  - id: pydantic-argparse
+    repo: https://github.com/SupImDos/pydantic-argparse
+    commit: c07199879040f9cfd26f13b2cfbeb8105a3c830f  # tag v0.8.0
+    reason: >-
+      Tests depend on Pydantic v1 internals (tests/conftest.py uses pydantic.fields.ModelField.infer
+      and pydantic.BaseSettings; test_parser.py uses __fields__, outer_type_, field_info), so the suite
+      cannot pass under v2 without editing tests. Upstream only moved to the pydantic.v1 shim.
