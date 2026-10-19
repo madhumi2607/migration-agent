@@ -140,11 +140,13 @@ def test_upgrade_packages() -> None:
 
 
 def test_build_docker_command(tmp_path: Path) -> None:
-    config = SandboxConfig(repo_root=tmp_path, install_cmd="pip install .", test_cmd="pytest tests", upgrade="pydantic>=2")
+    config = SandboxConfig(repo_root=tmp_path, install_cmd="pip install .", test_cmd="pytest tests", upgrade="pydantic>=2",
+                           test_deps='pytest "shapely<2.1"')
     cmd = runner.build_docker_command(config, tmp_path / "out", "c1", ["tests/test_a.py::test_x[a b]"])
     assert cmd[:3] == ["docker", "run", "--rm"]
     assert f"{tmp_path.resolve()}:/src:ro" in cmd  # host repo is read-only
     assert "TEST_CMD=pytest tests 'tests/test_a.py::test_x[a b]'" in cmd  # quoted for the container shell
+    assert 'TEST_DEPS=pytest "shapely<2.1"' in cmd
     assert cmd[-1] == config.image
 
 
@@ -180,7 +182,8 @@ def test_geojson_pydantic_under_v2() -> None:
                     "&& git -C {repo} checkout 8a07ab86373fb289c6a4ce34c2105a777debe380")
     config = SandboxConfig(
         repo_root=repo,
-        install_cmd='pip install -e . pytest "shapely>=2.0,<2.1"',
+        install_cmd="pip install -e .",
+        test_deps='pytest "shapely>=2.0,<2.1"',
         test_cmd="pytest tests",
         upgrade="pydantic>=2,<3",
     )

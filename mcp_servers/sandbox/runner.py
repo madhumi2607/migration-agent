@@ -28,9 +28,10 @@ class SandboxConfig:
     """How to run one task's tests. Fixed when the server starts; the agent can't change it."""
 
     repo_root: Path
-    install_cmd: str
+    install_cmd: str  # the repo with its own deps (agent-controlled), e.g. "pip install -e ."
     test_cmd: str
     upgrade: str = ""  # e.g. "pydantic>=2,<3"; empty means run with the repo's own pins
+    test_deps: str = ""  # harness test tools / era pins, installed after the repo, e.g. 'pytest "shapely<2.1"'
     image: str = "migration-agent-sandbox:py3.11"
     timeout_seconds: int = 600
     memory: str = "2g"
@@ -60,6 +61,7 @@ def build_docker_command(config: SandboxConfig, out_dir: Path, container_name: s
         "-v", f"{config.repo_root.resolve()}:/src:ro",
         "-v", f"{out_dir.resolve()}:/out",
         "-e", f"INSTALL_CMD={config.install_cmd}",
+        "-e", f"TEST_DEPS={config.test_deps}",
         "-e", f"UPGRADE={config.upgrade}",
         "-e", f"TEST_CMD={test_cmd}",
         config.image,

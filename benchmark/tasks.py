@@ -21,6 +21,7 @@ class Task:
     install: str
     upgrade: str
     test: str
+    test_deps: str = ""
     difficulty: str = ""
 
     @property
@@ -32,6 +33,7 @@ class Task:
         return {
             "TARGET_REPO_ROOT": str(self.checkout.resolve()),
             "SANDBOX_INSTALL_CMD": self.install,
+            "SANDBOX_TEST_DEPS": self.test_deps,
             "SANDBOX_TEST_CMD": self.test,
             "SANDBOX_UPGRADE": self.upgrade,
         }

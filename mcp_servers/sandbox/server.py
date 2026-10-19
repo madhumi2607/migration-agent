@@ -30,6 +30,7 @@ def config_from_env() -> SandboxConfig:
         install_cmd=required("SANDBOX_INSTALL_CMD"),
         test_cmd=required("SANDBOX_TEST_CMD"),
         upgrade=os.environ.get("SANDBOX_UPGRADE", ""),
+        test_deps=os.environ.get("SANDBOX_TEST_DEPS", ""),
         image=os.environ.get("SANDBOX_IMAGE", SandboxConfig.image),
         timeout_seconds=int(os.environ.get("SANDBOX_TIMEOUT_SECONDS", SandboxConfig.timeout_seconds)),
     )

@@ -277,7 +277,7 @@ async def _main(args: argparse.Namespace) -> tuple[RunResult, RunTrace]:
         "provider": os.environ.get("LLM_PROVIDER", "claude"),
         "model": llm.model,
         "effort": getattr(llm, "effort", None),
-        "sandbox": {k: os.environ.get(k) for k in ("SANDBOX_INSTALL_CMD", "SANDBOX_TEST_CMD", "SANDBOX_UPGRADE", "SANDBOX_IMAGE")},
+        "sandbox": {k: os.environ.get(k) for k in ("SANDBOX_INSTALL_CMD", "SANDBOX_TEST_DEPS", "SANDBOX_TEST_CMD", "SANDBOX_UPGRADE", "SANDBOX_IMAGE")},
     })
     print(f"Recording run to {trace.path}", file=sys.stderr)
     async with ToolBox(servers) as toolbox:

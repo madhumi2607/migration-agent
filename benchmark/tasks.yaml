@@ -1,7 +1,10 @@
 # Benchmark tasks. One entry per target repo, pinned to a commit that uses the old version.
-# install: installs the repo plus its test deps inside the sandbox (repo is the cwd).
-#          Use an editable install (-e) so tracebacks point into the repo, not site-packages.
-#          Pin deps to the era the repo was written for, so the baseline passes.
+# install:   installs the repo with its OWN dependencies (repo is the cwd). Editable (-e), so
+#            tracebacks point into the repo, not site-packages. The agent controls these deps.
+# test_deps: test tools and era pins (versions the repo was written against, so the baseline
+#            passes). Installed separately AFTER the repo: when the agent correctly bumps a
+#            dependency, a harness pin must never make its install fail (it did, see
+#            fastapi-restful, and the agent hand-rolled BaseSettings to dodge the conflict).
 # upgrade: pip requirement(s) forced on top to simulate the upgrade. Move companion packages
 #          only as far as the new version requires, so the task stays about this library.
 #
@@ -20,7 +23,8 @@ tasks:
     old_version: "1"
     new_version: "2"
     # shapely 2.0.x: the tests compare WKT strings, and 2.1+ (newer GEOS) and 1.x format them differently.
-    install: pip install -e . pytest "shapely>=2.0,<2.1"
+    install: pip install -e .
+    test_deps: pytest "shapely>=2.0,<2.1"
     upgrade: pydantic>=2,<3
     test: pytest tests
     baseline: 134 passed on pydantic 1.10
@@ -35,7 +39,8 @@ tasks:
     new_version: "2"
     # fastapi<0.100: newer releases changed request-scoped dependency cleanup (7 unrelated failures).
     # Old httpx / pytest / pytest-asyncio: newer releases broke APIs the old test client relies on.
-    install: pip install -e ".[session]" "fastapi>=0.89,<0.100" "pytest>=7,<8" "pytest-asyncio<0.24" "httpx<0.28" aiofiles
+    install: pip install -e ".[session]"
+    test_deps: '"fastapi>=0.89,<0.100" "pytest>=7,<8" "pytest-asyncio<0.24" "httpx<0.28" aiofiles'
     # Pydantic v2 needs FastAPI >=0.100; stay below 0.104 so later FastAPI changes aren't part of the task.
     # BaseSettings moved to pydantic-settings: adding that dependency is part of the agent's job.
     upgrade: pydantic>=2,<3 fastapi>=0.100,<0.104
@@ -51,7 +56,8 @@ tasks:
     old_version: "1"
     new_version: "2"
     # shtab: optional dependency; without it 2 tests are skipped.
-    install: pip install -e . "pytest>=7,<8" shtab
+    install: pip install -e .
+    test_deps: '"pytest>=7,<8" shtab'
     upgrade: pydantic>=2,<3
     test: pytest pydantic_cli/tests
     baseline: 35 passed on pydantic 1.10
