@@ -13,3 +13,6 @@ runs/
 # Dashboard frontend: dependencies and build output.
 dashboard/web/node_modules/
 dashboard/web/dist/
+
+# Downloaded docs and the docs_search index (rebuild with python -m mcp_servers.docs_search.build).
+data/

@@ -173,7 +173,7 @@ async def run_agent(
         emit("tool_call", step=result.steps, id=call.id, name=call.name, arguments=call.arguments, result=content,
              is_error=content.startswith("ERROR:"), seconds=round(time.monotonic() - started, 2))
 
-    system = prompts.system_prompt(task.library, task.old_version, task.new_version)
+    system = prompts.system_prompt(task.library, task.old_version, task.new_version, has_docs=toolbox.has("search_docs"))
     tools = [*toolbox.specs, FINISH_TOOL]
     emit("start", task=asdict(task), config=asdict(config), system=system, tools=[asdict(t) for t in tools])
 
@@ -256,6 +256,13 @@ async def _run_tool_call(toolbox: ToolBox, call: ToolCall, limit: int) -> str:
     return render(is_error, payload, limit)
 
 
+def docs_index_ready() -> bool:
+    """True if the docs_search index has been built (chunks.json exists)."""
+    from mcp_servers.docs_search.build import index_path
+
+    return (index_path() / "chunks.json").is_file()
+
+
 def _stdio_server(module: str) -> StdioServerParameters:
     """Launch one of our MCP servers as a subprocess, inheriting this process's env (.env values, PATH)."""
     return StdioServerParameters(command=sys.executable, args=["-m", module], env=dict(os.environ))
@@ -272,9 +279,16 @@ async def _main(args: argparse.Namespace) -> tuple[RunResult, RunTrace]:
     else:
         task = TaskSpec(args.library, args.old_version, args.new_version)
     servers = [_stdio_server("mcp_servers.repo_tools.server"), _stdio_server("mcp_servers.sandbox.server")]
+    use_docs = not args.no_docs and docs_index_ready()
+    if use_docs:
+        servers.append(_stdio_server("mcp_servers.docs_search.server"))
+    elif not args.no_docs:
+        print("docs_search: index not built, running without it "
+              "(build with: uv run python -m mcp_servers.docs_search.build)", file=sys.stderr)
     llm = get_llm()
     trace = RunTrace.create(args.runs_dir, repo=os.environ["TARGET_REPO_ROOT"], meta={
         "task_id": args.task,
+        "docs_search": use_docs,
         "provider": os.environ.get("LLM_PROVIDER", "claude"),
         "model": llm.model,
         "effort": getattr(llm, "effort", None),
@@ -301,6 +315,7 @@ def main() -> None:
     parser.add_argument("--old-version", default="1")
     parser.add_argument("--new-version", default="2")
     parser.add_argument("--max-steps", type=int, default=LoopConfig.max_steps)
+    parser.add_argument("--no-docs", action="store_true", help="run without the docs_search tool (for comparisons)")
     parser.add_argument("--runs-dir", default=str(PROJECT_ROOT / "runs"), help="where run traces are written")
     result, trace = asyncio.run(_main(parser.parse_args()))
     print(json.dumps({k: v for k, v in asdict(result).items() if k not in ("initial_report", "final_report")}, indent=1))

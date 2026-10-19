@@ -7,6 +7,8 @@ requires-python = ">=3.11"
 dependencies = [
     # Anthropic's official SDK: the Claude provider (default model for agent runs).
     "anthropic>=1.15,<2",
+    # Vector store for docs_search (CLAUDE.md); bundles a local ONNX embedding model, so no API cost per query.
+    "chromadb>=1.5,<2",
     # Dashboard backend (dashboard/api.py): JSON API over runs/ and serving the React app.
     "fastapi>=0.120,<1",
     # Google's official Gemini SDK: second LLM provider (larger free-tier token limits than Groq).
