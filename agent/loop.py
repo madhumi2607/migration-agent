@@ -40,17 +40,22 @@ class TaskSpec:
 @dataclass
 class LoopConfig:
     max_steps: int = 40                 # LLM calls
-    max_total_tokens: int = 1_000_000   # input + output, summed over all calls
+    # Billable tokens: input NOT served from the prompt cache, plus output, summed over all calls.
+    # Cache reads are excluded because they cost ~1/20 of normal input; counting them would end
+    # cheap, well-cached runs early (a 29-step Claude run read 978K of its 1.03M input from cache).
+    max_billable_tokens: int = 500_000
     max_tool_result_chars: int = 8_000  # longer tool results are truncated before the LLM sees them
 
 
 @dataclass
 class RunResult:
     success: bool = False
-    stop_reason: str = ""  # finished | already_passing | max_steps | token_budget | llm_error
-    error: str | None = None  # set when stop_reason is llm_error
+    # finished | already_passing | max_steps | token_budget | llm_error | sandbox_error
+    stop_reason: str = ""
+    error: str | None = None  # set when stop_reason is llm_error or sandbox_error
     steps: int = 0
-    input_tokens: int = 0
+    input_tokens: int = 0  # all prompt tokens, cached or not
+    cache_read_tokens: int = 0  # the part of input_tokens served from the prompt cache
     output_tokens: int = 0
     summary: str | None = None
     initial_report: dict[str, Any] = field(default_factory=dict)
@@ -134,6 +139,12 @@ async def run_agent(llm: LLM, toolbox: ToolBox, task: TaskSpec, config: LoopConf
     if result.initial_report.get("status") == "passed":
         result.success, result.stop_reason, result.final_report = True, "already_passing", result.initial_report
         return result
+    if result.initial_report.get("status") in ("sandbox_error", "timeout"):
+        # The tests can't run at all (e.g. Docker is down). Don't pay for LLM calls the
+        # model can't verify: it would be editing code blind.
+        result.stop_reason, result.final_report = "sandbox_error", result.initial_report
+        result.error = str(result.initial_report.get("detail") or result.initial_report.get("status"))[:1000]
+        return result
 
     system = prompts.system_prompt(task.library, task.old_version, task.new_version)
     messages = [{"role": "user", "content": prompts.initial_message(task.library, task.new_version, result.initial_report)}]
@@ -143,7 +154,7 @@ async def run_agent(llm: LLM, toolbox: ToolBox, task: TaskSpec, config: LoopConf
         if result.steps >= config.max_steps:
             result.stop_reason = "max_steps"
             break
-        if result.input_tokens + result.output_tokens >= config.max_total_tokens:
+        if result.input_tokens - result.cache_read_tokens + result.output_tokens >= config.max_billable_tokens:
             result.stop_reason = "token_budget"
             break
 
@@ -155,6 +166,7 @@ async def run_agent(llm: LLM, toolbox: ToolBox, task: TaskSpec, config: LoopConf
             break
         result.steps += 1
         result.input_tokens += response.input_tokens
+        result.cache_read_tokens += response.cache_read_tokens
         result.output_tokens += response.output_tokens
         messages.append(assistant_message(response))
 

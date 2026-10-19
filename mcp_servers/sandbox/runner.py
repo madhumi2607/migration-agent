@@ -83,9 +83,13 @@ def run_tests(config: SandboxConfig, tests: list[str] | None = None) -> dict[str
             return {"status": "sandbox_error", "detail": "The `docker` command was not found. Is Docker installed and on PATH?"}
         duration = round(time.monotonic() - start, 1)
 
-        if proc.returncode not in EXPECTED_EXIT_CODES:
-            # Docker couldn't start the container (125), the entrypoint couldn't run (126/127,
-            # or 255 from a broken script), or it was OOM-killed (137). Not the repo's fault.
+        # The entrypoint writes install.log before anything else, so if it's missing the
+        # container never ran. Exit codes alone can't tell: with the Docker engine down,
+        # `docker run` exits 1, the same code pytest uses for "some tests failed".
+        never_ran = not (out_dir / "install.log").exists()
+        if never_ran or proc.returncode not in EXPECTED_EXIT_CODES:
+            # Docker couldn't start the container (engine down, 125), the entrypoint couldn't run
+            # (126/127, or 255 from a broken script), or it was OOM-killed (137). Not the repo's fault.
             return {"status": "sandbox_error", "exit_code": proc.returncode, "detail": proc.stderr.strip()[-1000:]}
 
         report = build_report(out_dir, proc.returncode, upgrade_packages(config.upgrade))

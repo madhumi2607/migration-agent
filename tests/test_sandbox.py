@@ -201,3 +201,14 @@ def test_broken_container_is_sandbox_error(tmp_path: Path, monkeypatch: pytest.M
     result = runner.run_tests(config)
     assert result["status"] == "sandbox_error"
     assert "no such file" in result["detail"]
+
+
+def test_docker_engine_down_is_sandbox_error_despite_exit_code_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With the engine down, `docker run` exits 1 (same as pytest's "tests failed") and writes nothing."""
+    def fake_run(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    result = runner.run_tests(SandboxConfig(repo_root=tmp_path, install_cmd="x", test_cmd="pytest"))
+    assert result["status"] == "sandbox_error" and result["exit_code"] == 1
+    assert "docker API" in result["detail"]

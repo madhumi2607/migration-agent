@@ -109,7 +109,7 @@ def test_stops_at_max_steps_and_runs_final_report(repo: Path) -> None:
 
 
 def test_stops_at_token_budget(repo: Path) -> None:
-    result, _ = run(ScriptedLLM(), repo, [FAILING], LoopConfig(max_total_tokens=250))
+    result, _ = run(ScriptedLLM(), repo, [FAILING], LoopConfig(max_billable_tokens=250))
     assert result.stop_reason == "token_budget" and result.steps == 3  # 110 tokens per step
 
 
@@ -169,3 +169,25 @@ def test_llm_error_stops_cleanly_with_final_report(repo: Path) -> None:
     assert result.stop_reason == "llm_error" and "413" in result.error
     assert result.steps == 1 and result.final_report["status"] == "startup_error"
     assert len(sandbox_calls) == 2
+
+
+def test_cached_tokens_do_not_count_toward_budget(repo: Path) -> None:
+    """A well-cached run is cheap: only uncached input + output count toward the budget."""
+    class CachedLLM(ScriptedLLM):
+        def chat(self, system: str, messages: list[Message], tools: list[ToolSpec]) -> LLMResponse:
+            response = super().chat(system, messages, tools)
+            response.input_tokens, response.cache_read_tokens = 10_000, 9_900  # 100 uncached + 10 output
+            return response
+
+    result, _ = run(CachedLLM(), repo, [FAILING], LoopConfig(max_billable_tokens=250, max_steps=10))
+    assert result.stop_reason == "token_budget" and result.steps == 3
+    assert result.input_tokens == 30_000 and result.cache_read_tokens == 29_700
+
+
+def test_broken_sandbox_stops_before_calling_the_llm(repo: Path) -> None:
+    """If the baseline can't even run (Docker down), editing would be blind: stop and say why."""
+    llm = ScriptedLLM()
+    broken = {"status": "sandbox_error", "exit_code": 1, "detail": "failed to connect to the docker API"}
+    result, sandbox_calls = run(llm, repo, [broken])
+    assert result.stop_reason == "sandbox_error" and "docker API" in result.error
+    assert llm.seen == [] and len(sandbox_calls) == 1
