@@ -12,6 +12,7 @@ function currentPath() {
 export function navigate(path: string) {
   window.history.pushState(null, "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
+  window.scrollTo(0, 0);
 }
 
 export default function App() {
@@ -25,14 +26,25 @@ export default function App() {
 
   const runMatch = path.match(/^\/runs\/([^/]+)$/);
   return (
-    <div className="app">
-      <header className="topbar">
+    <div className="shell">
+      <aside className="sidebar">
         <a href="/" onClick={(e) => { e.preventDefault(); navigate("/"); }} className="brand">
-          Migration Agent
+          <span className="brand-mark" aria-hidden>⇡</span>
+          <span>
+            Migration Agent
+            <span className="brand-sub">run viewer</span>
+          </span>
         </a>
-        <span className="muted">run viewer</span>
-      </header>
-      <main>{runMatch ? <RunPage runId={decodeURIComponent(runMatch[1])} /> : <RunsPage />}</main>
+        <nav className="side-nav">
+          <a href="/" onClick={(e) => { e.preventDefault(); navigate("/"); }} className={runMatch ? "" : "active"}>
+            Runs
+          </a>
+        </nav>
+        <div className="sidebar-foot muted small">Reads <span className="mono">runs/</span> · updates live</div>
+      </aside>
+      <main className="content">
+        {runMatch ? <RunPage runId={decodeURIComponent(runMatch[1])} /> : <RunsPage />}
+      </main>
     </div>
   );
 }

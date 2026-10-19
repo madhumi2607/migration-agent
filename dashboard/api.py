@@ -1,6 +1,6 @@
 """Dashboard backend: a read-only JSON API over runs/, plus the built React app.
 
-Run:
+Run from the project root (Python must be able to import the `dashboard` package):
     uv run uvicorn dashboard.api:app --port 8000
 Then open http://localhost:8000 (after `npm run build` in dashboard/web), or during
 frontend development run `npm run dev` there, which proxies /api to this server.
@@ -16,7 +16,9 @@ from fastapi.staticfiles import StaticFiles
 
 from dashboard.runs import list_run_ids, run_detail, summarize
 
-RUNS_DIR = Path(os.environ.get("RUNS_DIR", "runs"))
+# The project's runs/ folder, wherever the server is started from (override with RUNS_DIR).
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+RUNS_DIR = Path(os.environ.get("RUNS_DIR", PROJECT_ROOT / "runs"))
 WEB_DIST = Path(__file__).parent / "web" / "dist"
 
 app = FastAPI(title="Migration Agent dashboard")
