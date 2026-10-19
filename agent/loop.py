@@ -14,6 +14,7 @@ import time
 from collections.abc import Callable
 from contextlib import AsyncExitStack
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any
 
 from mcp import Client, StdioServerParameters
@@ -22,6 +23,9 @@ from mcp.server.mcpserver import MCPServer
 from agent import prompts
 from agent.llm import LLM, LLMResponse, ToolCall, ToolSpec, assistant_message, get_llm, tool_result_message
 from agent.trace import RunTrace
+from benchmark.tasks import load_tasks, prepare_checkout
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # Receives one dict per thing that happens in a run (see run_agent); used for tracing.
 EventHandler = Callable[[dict[str, Any]], None]
@@ -257,10 +261,19 @@ def _stdio_server(module: str) -> StdioServerParameters:
 
 
 async def _main(args: argparse.Namespace) -> tuple[RunResult, RunTrace]:
+    if args.task:
+        # A benchmark task: its checkout and sandbox settings replace the ones from .env.
+        # Must happen before the servers are configured, since they read these at startup.
+        benchmark_task = load_tasks()[args.task]
+        prepare_checkout(benchmark_task)
+        os.environ.update(benchmark_task.sandbox_env())
+        task = TaskSpec(benchmark_task.library, benchmark_task.old_version, benchmark_task.new_version)
+    else:
+        task = TaskSpec(args.library, args.old_version, args.new_version)
     servers = [_stdio_server("mcp_servers.repo_tools.server"), _stdio_server("mcp_servers.sandbox.server")]
-    task = TaskSpec(args.library, args.old_version, args.new_version)
     llm = get_llm()
     trace = RunTrace.create(args.runs_dir, repo=os.environ["TARGET_REPO_ROOT"], meta={
+        "task_id": args.task,
         "provider": os.environ.get("LLM_PROVIDER", "claude"),
         "model": llm.model,
         "effort": getattr(llm, "effort", None),
@@ -274,12 +287,13 @@ async def _main(args: argparse.Namespace) -> tuple[RunResult, RunTrace]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the migration agent on TARGET_REPO_ROOT.")
+    parser = argparse.ArgumentParser(description="Run the migration agent on a benchmark task, or on TARGET_REPO_ROOT.")
+    parser.add_argument("--task", help="task id from benchmark/tasks.yaml (overrides the target settings in .env)")
     parser.add_argument("--library", default="pydantic")
     parser.add_argument("--old-version", default="1")
     parser.add_argument("--new-version", default="2")
     parser.add_argument("--max-steps", type=int, default=LoopConfig.max_steps)
-    parser.add_argument("--runs-dir", default="runs", help="where run traces are written")
+    parser.add_argument("--runs-dir", default=str(PROJECT_ROOT / "runs"), help="where run traces are written")
     result, trace = asyncio.run(_main(parser.parse_args()))
     print(json.dumps({k: v for k, v in asdict(result).items() if k not in ("initial_report", "final_report")}, indent=1))
     print(f"Trace: {trace.path}")

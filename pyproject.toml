@@ -15,6 +15,8 @@ dependencies = [
     "groq>=1.7,<2",
     # Official MCP Python SDK: used to build the repo_tools and sandbox tool servers.
     "mcp>=2.3,<3",
+    # Reads benchmark/tasks.yaml (the task list format CLAUDE.md specifies).
+    "pyyaml>=6,<7",
     # ASGI server that runs the dashboard (already pulled in by mcp; listed because we use it directly).
     "uvicorn>=0.30",
 ]

@@ -1,25 +1,63 @@
 # Benchmark tasks. One entry per target repo, pinned to a commit that uses the old version.
 # install: installs the repo plus its test deps inside the sandbox (repo is the cwd).
 #          Use an editable install (-e) so tracebacks point into the repo, not site-packages.
-#          Pin test deps the suite was written against, so the baseline passes.
-# upgrade: pip requirement(s) forced on top to simulate the upgrade.
+#          Pin deps to the era the repo was written for, so the baseline passes.
+# upgrade: pip requirement(s) forced on top to simulate the upgrade. Move companion packages
+#          only as far as the new version requires, so the task stays about this library.
 #
 # A task is only valid if its baseline passes on the old version and its tests use the
 # library through its public API: the agent may not edit tests, so tests that depend on
 # old-version internals make the task impossible.
+#
+# Run one with:  uv run --env-file .env python -m agent.loop --task <id>
 
-- id: geojson-pydantic
-  repo: https://github.com/developmentseed/geojson-pydantic
-  commit: 8a07ab86373fb289c6a4ce34c2105a777debe380  # tag 0.6.3, pins pydantic~=1.0
-  library: pydantic
-  old_version: "1"
-  new_version: "2"
-  # shapely 2.0.x: the tests compare WKT strings, and 2.1+ (newer GEOS) and 1.x format them differently.
-  install: pip install -e . pytest "shapely>=2.0,<2.1"
-  upgrade: pydantic>=2,<3
-  test: pytest tests
-  baseline: 134 passed on pydantic 1.10
-  reference_solution: https://github.com/developmentseed/geojson-pydantic/pull/130  # upstream native v2 port
+tasks:
+  - id: geojson-pydantic
+    difficulty: easy
+    repo: https://github.com/developmentseed/geojson-pydantic
+    commit: 8a07ab86373fb289c6a4ce34c2105a777debe380  # tag 0.6.3, pins pydantic~=1.0
+    library: pydantic
+    old_version: "1"
+    new_version: "2"
+    # shapely 2.0.x: the tests compare WKT strings, and 2.1+ (newer GEOS) and 1.x format them differently.
+    install: pip install -e . pytest "shapely>=2.0,<2.1"
+    upgrade: pydantic>=2,<3
+    test: pytest tests
+    baseline: 134 passed on pydantic 1.10
+    reference_solution: https://github.com/developmentseed/geojson-pydantic/pull/130  # upstream native v2 port
+
+  - id: fastapi-restful
+    difficulty: medium
+    repo: https://github.com/yuval9313/FastApi-RESTful
+    commit: 9ca60cb63e38551d54c74acd69f7469f5e9519a1  # pins pydantic ^1.0,<2.0, fastapi >=0.89,<1.0
+    library: pydantic
+    old_version: "1"
+    new_version: "2"
+    # fastapi<0.100: newer releases changed request-scoped dependency cleanup (7 unrelated failures).
+    # Old httpx / pytest / pytest-asyncio: newer releases broke APIs the old test client relies on.
+    install: pip install -e ".[session]" "fastapi>=0.89,<0.100" "pytest>=7,<8" "pytest-asyncio<0.24" "httpx<0.28" aiofiles
+    # Pydantic v2 needs FastAPI >=0.100; stay below 0.104 so later FastAPI changes aren't part of the task.
+    # BaseSettings moved to pydantic-settings: adding that dependency is part of the agent's job.
+    upgrade: pydantic>=2,<3 fastapi>=0.100,<0.104
+    test: pytest tests
+    baseline: 69 passed on pydantic 1.10 + fastapi 0.99
+    reference_solution: https://github.com/yuval9313/FastApi-RESTful/pull/199  # keeps a v1 branch too
+
+  - id: pydantic-cli
+    difficulty: hard
+    repo: https://github.com/mpkocher/pydantic-cli
+    commit: d67ab8b265fd9ed045d27ecd904a04b8185481fa  # REQUIREMENTS.txt pins pydantic >=1.5,<2
+    library: pydantic
+    old_version: "1"
+    new_version: "2"
+    # shtab: optional dependency; without it 2 tests are skipped.
+    install: pip install -e . "pytest>=7,<8" shtab
+    upgrade: pydantic>=2,<3
+    test: pytest pydantic_cli/tests
+    baseline: 35 passed on pydantic 1.10
+    # Upstream changed CLI boolean-flag behaviour in its v2 port and rewrote those tests, so there is
+    # no drop-in reference for them: the agent must keep v1 CLI behaviour on top of v2 introspection.
+    reference_solution: https://github.com/mpkocher/pydantic-cli/pull/58
 
 # Rejected tasks, kept so they aren't re-evaluated.
 rejected:
